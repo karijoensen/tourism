@@ -4,4 +4,6 @@ breytum skránni í RStudio
 
 og breytum henni aftur föst. 13:25
 
-og núna á nýju tölvu, 14:35
+og núna á nýju tölvu, 14:55
+
+og svo aftur á gömlu tölvu 14:56
