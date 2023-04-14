@@ -3,3 +3,5 @@
 breytum skránni í RStudio
 
 og breytum henni aftur föst. 13:25
+
+og núna á nýju tölvu, 14:35
