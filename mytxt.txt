@@ -1,3 +1,5 @@
 "here is a bit of text" 
 
 breytum skránni í RStudio
+
+og breytum henni aftur föst. 13:25
