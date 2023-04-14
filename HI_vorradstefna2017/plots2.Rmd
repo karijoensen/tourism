@@ -1,0 +1,329 @@
+---
+title: "R Notebook"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+load_lib <- function(){
+    library(knitr)
+    library(ggplot2)
+    library(plyr)
+    library(dplyr)
+    library(cluster)
+    library(reshape2)
+    library(magrittr)
+}
+suppressPackageStartupMessages(
+    load_lib()    
+    )
+load(file="m_ca.RData")
+load(file="m_ch.RData")
+load(file="m_de.RData")
+load(file="m_dk.RData")
+load(file="m_fr.RData")
+load(file="m_uk.RData")
+load(file="m_us.RData")
+opts_chunk$set(echo=FALSE)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+```{r}
+library(DescTools)
+seasonal <- data.frame()
+
+lvl_de<-names(table(m_de$Q01SQ27))[c(4,2,1,3,5)]
+lvl_dk<-names(table(m_dk$Q01SQ27))[c(2,5,3,4,1)]
+lvl_en<-names(table(m_ca$Q01SQ27))[c(3,5,1,4,2)]
+lvl_fr<-names(table(m_fr$Q01SQ27))[c(4,3,1,2,5)]
+
+ca<-m_ca %>% select(Q01SQ09,Q01SQ17,Q01SQ26) %>% colwise(ordered)() %>% catcolwise(reorder)(new.order=lvl_en)
+ch<-m_ch %>% select(Q01SQ09,Q01SQ17,Q01SQ26) %>% colwise(ordered)() %>% catcolwise(reorder)(new.order=lvl_de)
+de<-m_de %>% select(Q01SQ09,Q01SQ17,Q01SQ26) %>% colwise(ordered)() %>% catcolwise(reorder)(new.order=lvl_de)
+dk<-m_dk %>% select(Q01SQ09,Q01SQ17,Q01SQ26) %>% colwise(ordered)() %>% catcolwise(reorder)(new.order=lvl_dk)
+fr<-m_fr %>% select(Q01SQ09,Q01SQ17,Q01SQ26) %>% colwise(ordered)() %>% catcolwise(reorder)(new.order=lvl_fr)
+uk<-m_uk %>% select(Q01SQ09,Q01SQ17,Q01SQ26) %>% colwise(ordered)() %>% catcolwise(reorder)(new.order=lvl_en)
+us<-m_us %>% select(Q01SQ09,Q01SQ17,Q01SQ26) %>% colwise(ordered)() %>% catcolwise(reorder)(new.order=lvl_en)
+
+x_de <- de %>% catcolwise(recode_factor)("Stimme gar nicht zu"=lvl_en[1],"Stimme eher nicht zu"=lvl_en[2],  "Neutral"=lvl_en[3], "Stimme eher zu"=lvl_en[4], "Stimme sehr zu"=lvl_en[5] )
+
+
+x_ch <- ch %>% catcolwise(recode_factor)("Stimme gar nicht zu"=lvl_en[1],"Stimme eher nicht zu"=lvl_en[2],  "Neutral"=lvl_en[3], "Stimme eher zu"=lvl_en[4], "Stimme sehr zu"=lvl_en[5] )
+
+
+x_dk <- dk %>% catcolwise(recode_factor)("Helt uenig"=lvl_en[1],"Overvejende uenig"=lvl_en[2],  "Neutral"=lvl_en[3], "Overvejende enig"=lvl_en[4], "Helt enig"=lvl_en[5] )
+
+
+temp_fr <- fr
+temp_fr$new09 <- ordered(as.numeric(temp_fr$Q01SQ09))
+temp_fr$new17 <- ordered(as.numeric(temp_fr$Q01SQ17))
+temp_fr$new26 <- ordered(as.numeric(temp_fr$Q01SQ26))
+temp_fr<-temp_fr[,4:6]
+
+x_fr <- temp_fr %>% catcolwise(recode_factor)(`1`=lvl_en[1],
+                                         `2`=lvl_en[2],  
+                                         `3`=lvl_en[3], 
+                                         `4`=lvl_en[4], 
+                                         `5`=lvl_en[5] )
+colnames(x_fr) <- colnames(fr)
+
+ca$country<-"ca"
+uk$country<-"uk"
+us$country<-"us"
+
+x_ch$country<-"ch"
+x_de$country<-"de"
+x_dk$country<-"dk"
+x_fr$country<-"fr"
+
+dm <- rbind(ca,x_ch,x_de,x_dk,x_fr,uk,us)
+
+
+
+```
+
+
+
+```{r}
+ca09 <- ordered(dm[which(dm$country=="ca"),1])
+ch09 <- ordered(dm[which(dm$country=="ch"),1])
+de09 <- ordered(dm[which(dm$country=="de"),1])
+dk09 <- ordered(dm[which(dm$country=="dk"),1])
+fr09 <- ordered(dm[which(dm$country=="fr"),1])
+uk09 <- ordered(dm[which(dm$country=="uk"),1])
+us09 <- ordered(dm[which(dm$country=="us"),1])
+
+
+pos_freq_ca <- as.numeric(table(ca09)/sum(table(ca09)))[5:4]
+pos_freq_ch <- as.numeric(table(ch09)/sum(table(ch09)))[5:4]
+pos_freq_de <- as.numeric(table(de09)/sum(table(de09)))[5:4]
+pos_freq_dk <- as.numeric(table(dk09)/sum(table(dk09)))[5:4]
+pos_freq_fr <- as.numeric(table(fr09)/sum(table(fr09)))[5:4]
+pos_freq_uk <- as.numeric(table(uk09)/sum(table(uk09)))[5:4]
+pos_freq_us <- as.numeric(table(us09)/sum(table(us09)))[5:4]
+pos_freq <- c(pos_freq_ca,pos_freq_ch,pos_freq_de,pos_freq_dk,pos_freq_fr,pos_freq_uk,pos_freq_us)
+pos_res <- names(table(ca09)/sum(table(ca09)))[5:4]
+
+
+pos <- as.data.frame(matrix(data=NA,nrow=14,ncol=3))
+colnames(pos)<-c("Question","Response","Freq")
+pos$Response <- rep(pos_res,7)
+pos$Question <- c("Canada","Canada", "Switzerland","Switzerland", 
+                  "Germany", "Germany", "Denmark","Denmark",  
+                  "France","France","United Kingdom", "United Kingdom", 
+                  "United States","United States")
+pos$Freq <- pos_freq
+neg <- pos
+
+neg_freq_ca <- as.numeric(table(ca09)/sum(table(ca09)))[2:1]
+neg_freq_ch <- as.numeric(table(ch09)/sum(table(ch09)))[2:1]
+neg_freq_de <- as.numeric(table(de09)/sum(table(de09)))[2:1]
+neg_freq_dk <- as.numeric(table(dk09)/sum(table(dk09)))[2:1]
+neg_freq_fr <- as.numeric(table(fr09)/sum(table(fr09)))[2:1]
+neg_freq_uk <- as.numeric(table(uk09)/sum(table(uk09)))[2:1]
+neg_freq_us <- as.numeric(table(us09)/sum(table(us09)))[2:1]
+neg_freq <- c(neg_freq_ca,neg_freq_ch,neg_freq_de,neg_freq_dk,neg_freq_fr,neg_freq_uk,neg_freq_us)
+neg_res <- names(table(ca09)/sum(table(ca09)))[2:1]
+
+neg$Response <- rep(neg_res,7)
+neg$Question <- c("Canada","Canada", "Switzerland","Switzerland", 
+                  "Germany", "Germany", "Denmark","Denmark",  
+                  "France","France","United Kingdom", "United Kingdom", 
+                  "United States","United States")
+neg$Freq <- neg_freq
+neg$Freq<- -neg$Freq
+
+negatives <- names(table(neg$Response))
+positives <- names(table(pos$Response))
+
+
+  likert_lab_scale <- c(rev(neg_res),rev(pos_res))
+   cbPalette <- c("#f7f7f7","#cccccc","#969696","#525252")
+    cbPalette <- c("#d9d9d9","#bdbdbd","#969696","#636363")
+ cbPalette <- c("#edf8fb","#b2e2e2","#66c2a4","#238b45") #green
+  
+    
+    library(stringr)
+    windowsFonts(Garamond=windowsFont("TT Garamond"))
+    
+    stackedchart <- ggplot() +
+        aes(Question, Freq, fill = Response, order = Response) + 
+        geom_bar(data = neg, stat = "identity", width = 0.5) + ggtitle("Ég vil aðeins ferðast til hlýrra og sólríkra staða",subtitle = "I only want to go to holiday destinations where it's warm and sunny") +
+        geom_bar(data = pos, stat = "identity", width = 0.5) + geom_hline(yintercept=0) +
+        scale_y_continuous(name = "",
+                           labels = paste0(seq(-100, 100, 40), "%"),
+                           limits = c(-0.8, 0.8),
+                           breaks = seq(-1, 1, .4)) +
+        #scale_fill_manual(values = c("red", "green", "blue","grey"), limits = c(negatives, positives)) +
+        scale_x_discrete("Country",labels = function(x) str_wrap(x, width = 40)) +
+        theme(text=element_text(family="Garamond", size=20)) +
+        scale_fill_manual("",values = cbPalette, limits = c(rev(negatives), rev(positives)), labels=likert_lab_scale) +
+        coord_flip()+ theme(legend.position="right")
+    
+    stackedchart
+```
+
+
+
+```{r}
+ca17 <- ordered(dm[which(dm$country=="ca"),2])
+ch17 <- ordered(dm[which(dm$country=="ch"),2])
+de17 <- ordered(dm[which(dm$country=="de"),2])
+dk17 <- ordered(dm[which(dm$country=="dk"),2])
+fr17 <- ordered(dm[which(dm$country=="fr"),2])
+uk17 <- ordered(dm[which(dm$country=="uk"),2])
+us17 <- ordered(dm[which(dm$country=="us"),2])
+
+pos_freq_ca <- as.numeric(table(ca17)/sum(table(ca17)))[5:4]
+pos_freq_ch <- as.numeric(table(ch17)/sum(table(ch17)))[5:4]
+pos_freq_de <- as.numeric(table(de17)/sum(table(de17)))[5:4]
+pos_freq_dk <- as.numeric(table(dk17)/sum(table(dk17)))[5:4]
+pos_freq_fr <- as.numeric(table(fr17)/sum(table(fr17)))[5:4]
+pos_freq_uk <- as.numeric(table(uk17)/sum(table(uk17)))[5:4]
+pos_freq_us <- as.numeric(table(us17)/sum(table(us17)))[5:4]
+pos_freq <- c(pos_freq_ca,pos_freq_ch,pos_freq_de,pos_freq_dk,pos_freq_fr,pos_freq_uk,pos_freq_us)
+pos_res <- names(table(ca17)/sum(table(ca17)))[5:4]
+
+
+pos <- as.data.frame(matrix(data=NA,nrow=14,ncol=3))
+colnames(pos)<-c("Question","Response","Freq")
+pos$Response <- rep(pos_res,7)
+pos$Question <- c("Canada","Canada", "Switzerland","Switzerland", 
+                  "Germany", "Germany", "Denmark","Denmark",  
+                  "France","France","United Kingdom", "United Kingdom", 
+                  "United States","United States")
+pos$Freq <- pos_freq
+neg <- pos
+
+neg_freq_ca <- as.numeric(table(ca17)/sum(table(ca17)))[2:1]
+neg_freq_ch <- as.numeric(table(ch17)/sum(table(ch17)))[2:1]
+neg_freq_de <- as.numeric(table(de17)/sum(table(de17)))[2:1]
+neg_freq_dk <- as.numeric(table(dk17)/sum(table(dk17)))[2:1]
+neg_freq_fr <- as.numeric(table(fr17)/sum(table(fr17)))[2:1]
+neg_freq_uk <- as.numeric(table(uk17)/sum(table(uk17)))[2:1]
+neg_freq_us <- as.numeric(table(us17)/sum(table(us17)))[2:1]
+neg_freq <- c(neg_freq_ca,neg_freq_ch,neg_freq_de,neg_freq_dk,neg_freq_fr,neg_freq_uk,neg_freq_us)
+neg_res <- names(table(ca17)/sum(table(ca17)))[2:1]
+
+neg$Response <- rep(neg_res,7)
+neg$Question <- c("Canada","Canada", "Switzerland","Switzerland", 
+                  "Germany", "Germany", "Denmark","Denmark",  
+                  "France","France","United Kingdom", "United Kingdom", 
+                  "United States","United States")
+neg$Freq <- neg_freq
+neg$Freq<- -neg$Freq
+
+
+
+  likert_lab_scale <- c(rev(neg_res),rev(pos_res))
+   cbPalette <- c("#f7f7f7","#cccccc","#969696","#525252")
+    cbPalette <- c("#d9d9d9","#bdbdbd","#969696","#636363")
+ cbPalette <- c("#edf8fb","#b2e2e2","#66c2a4","#238b45") #green
+  
+    
+    library(stringr)
+    windowsFonts(Garamond=windowsFont("TT Garamond"))
+    
+    stackedchart <- ggplot() +
+        aes(Question, Freq, fill = Response, order = Response) + 
+        geom_bar(data = neg, stat = "identity", width = 0.5) + ggtitle("Ég vil ferðast um ótroðnar slóðir",subtitle = "I enjoy travel off the beaten track") +
+        geom_bar(data = pos, stat = "identity", width = 0.5) + geom_hline(yintercept=0) +
+        scale_y_continuous(name = "",
+                           labels = paste0(seq(-100, 100, 40), "%"),
+                           limits = c(-0.8, 0.8),
+                           breaks = seq(-1, 1, .4)) +
+        #scale_fill_manual(values = c("red", "green", "blue","grey"), limits = c(negatives, positives)) +
+        scale_x_discrete("Country",labels = function(x) str_wrap(x, width = 40)) +
+        theme(text=element_text(family="Garamond", size=16)) +
+        scale_fill_manual("",values = cbPalette, limits = c(rev(negatives), rev(positives)), labels=likert_lab_scale) +
+        coord_flip()+ theme(legend.position="right")
+    
+    stackedchart
+```
+
+
+
+```{r}
+ca26 <- ordered(dm[which(dm$country=="ca"),2])
+ch26 <- ordered(dm[which(dm$country=="ch"),2])
+de26 <- ordered(dm[which(dm$country=="de"),2])
+dk26 <- ordered(dm[which(dm$country=="dk"),2])
+fr26 <- ordered(dm[which(dm$country=="fr"),2])
+uk26 <- ordered(dm[which(dm$country=="uk"),2])
+us26 <- ordered(dm[which(dm$country=="us"),2])
+
+pos_freq_ca <- as.numeric(table(ca26)/sum(table(ca26)))[5:4]
+pos_freq_ch <- as.numeric(table(ch26)/sum(table(ch26)))[5:4]
+pos_freq_de <- as.numeric(table(de26)/sum(table(de26)))[5:4]
+pos_freq_dk <- as.numeric(table(dk26)/sum(table(dk26)))[5:4]
+pos_freq_fr <- as.numeric(table(fr26)/sum(table(fr26)))[5:4]
+pos_freq_uk <- as.numeric(table(uk26)/sum(table(uk26)))[5:4]
+pos_freq_us <- as.numeric(table(us26)/sum(table(us26)))[5:4]
+pos_freq <- c(pos_freq_ca,pos_freq_ch,pos_freq_de,pos_freq_dk,pos_freq_fr,pos_freq_uk,pos_freq_us)
+pos_res <- names(table(ca26)/sum(table(ca26)))[5:4]
+
+
+pos <- as.data.frame(matrix(data=NA,nrow=14,ncol=3))
+colnames(pos)<-c("Question","Response","Freq")
+pos$Response <- rep(pos_res,7)
+pos$Question <- c("Canada","Canada", "Switzerland","Switzerland", 
+                  "Germany", "Germany", "Denmark","Denmark",  
+                  "France","France","United Kingdom", "United Kingdom", 
+                  "United States","United States")
+pos$Freq <- pos_freq
+neg <- pos
+
+neg_freq_ca <- as.numeric(table(ca26)/sum(table(ca26)))[2:1]
+neg_freq_ch <- as.numeric(table(ch26)/sum(table(ch26)))[2:1]
+neg_freq_de <- as.numeric(table(de26)/sum(table(de26)))[2:1]
+neg_freq_dk <- as.numeric(table(dk26)/sum(table(dk26)))[2:1]
+neg_freq_fr <- as.numeric(table(fr26)/sum(table(fr26)))[2:1]
+neg_freq_uk <- as.numeric(table(uk26)/sum(table(uk26)))[2:1]
+neg_freq_us <- as.numeric(table(us26)/sum(table(us26)))[2:1]
+neg_freq <- c(neg_freq_ca,neg_freq_ch,neg_freq_de,neg_freq_dk,neg_freq_fr,neg_freq_uk,neg_freq_us)
+neg_res <- names(table(ca26)/sum(table(ca26)))[2:1]
+
+neg$Response <- rep(neg_res,7)
+neg$Question <- c("Canada","Canada", "Switzerland","Switzerland", 
+                  "Germany", "Germany", "Denmark","Denmark",  
+                  "France","France","United Kingdom", "United Kingdom", 
+                  "United States","United States")
+neg$Freq <- neg_freq
+neg$Freq<- -neg$Freq
+
+
+
+  likert_lab_scale <- c(rev(neg_res),rev(pos_res))
+   cbPalette <- c("#f7f7f7","#cccccc","#969696","#525252")
+    cbPalette <- c("#d9d9d9","#bdbdbd","#969696","#636363")
+ cbPalette <- c("#edf8fb","#b2e2e2","#66c2a4","#238b45") #green
+  
+    
+    library(stringr)
+    windowsFonts(Garamond=windowsFont("TT Garamond"))
+    
+    stackedchart <- ggplot() +
+        aes(Question, Freq, fill = Response, order = Response) + 
+        geom_bar(data = neg, stat = "identity", width = 0.5) + ggtitle("Ég vil sækja í nýjar ferðaupplifanir",subtitle = "I actively seek new travel experiences") +
+        geom_bar(data = pos, stat = "identity", width = 0.5) + geom_hline(yintercept=0) +
+        scale_y_continuous(name = "",
+                           labels = paste0(seq(-100, 100, 40), "%"),
+                           limits = c(-0.8, 0.8),
+                           breaks = seq(-1, 1, .4)) +
+        #scale_fill_manual(values = c("red", "green", "blue","grey"), limits = c(negatives, positives)) +
+        scale_x_discrete("Country",labels = function(x) str_wrap(x, width = 40)) +
+        theme(text=element_text(family="Garamond", size=16)) +
+        scale_fill_manual("",values = cbPalette, limits = c(rev(negatives), rev(positives)), labels=likert_lab_scale) +
+        coord_flip()+ theme(legend.position="right")
+    
+    stackedchart
+```
+
